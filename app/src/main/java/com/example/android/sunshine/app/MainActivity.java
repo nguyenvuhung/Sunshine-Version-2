@@ -15,6 +15,7 @@
  */
 package com.example.android.sunshine.app;
 
+import android.os.AsyncTask;
 import android.os.Bundle;
 import android.support.v4.app.Fragment;
 import android.support.v7.app.ActionBarActivity;
@@ -26,6 +27,7 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ArrayAdapter;
 import android.widget.ListView;
+
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
@@ -83,7 +85,7 @@ public class MainActivity extends ActionBarActivity {
 
         @Override
         public View onCreateView(LayoutInflater inflater, ViewGroup container,
-                Bundle savedInstanceState) {
+                                 Bundle savedInstanceState) {
 
             // Create some dummy data for the ListView.  Here's a sample weekly forecast
             String[] data = {
@@ -102,11 +104,11 @@ public class MainActivity extends ActionBarActivity {
             // The ArrayAdapter will take data from a source (like our dummy forecast) and
             // use it to populate the ListView it's attached to.
             mForecastAdapter =
-                new ArrayAdapter<String>(
-                    getActivity(), // The current context (this activity)
-                    R.layout.list_item_forecast, // The name of the layout ID.
-                    R.id.list_item_forecast_textview, // The ID of the textview to populate.
-                    weekForecast);
+                    new ArrayAdapter<String>(
+                            getActivity(), // The current context (this activity)
+                            R.layout.list_item_forecast, // The name of the layout ID.
+                            R.id.list_item_forecast_textview, // The ID of the textview to populate.
+                            weekForecast);
 
             View rootView = inflater.inflate(R.layout.fragment_main, container, false);
 
@@ -114,6 +116,21 @@ public class MainActivity extends ActionBarActivity {
             ListView listView = (ListView) rootView.findViewById(R.id.listview_forecast);
             listView.setAdapter(mForecastAdapter);
 
+            // Construct the URL for the OpenWeatherMap query
+            // Possible parameters are avaiable at OWM's forecast API page, at
+            // http://openweathermap.org/API#forecast
+            String baseUrl = "http://api.openweathermap.org/data/2.5/forecast/daily?q=94043&mode=json&units=metric&cnt=7";
+            String apiKey = "&APPID=" + BuildConfig.OPEN_WEATHER_MAP_API_KEY;
+            String stringUrl = baseUrl.concat(apiKey);
+            new DownloadWebpageTask().execute(stringUrl);
+
+            return rootView;
+        }
+
+        // Given a URL, establishes an HttpUrlConnection and retrieves
+        // the web page content as a InputStream, which it returns as
+        // a string.
+        private String downloadUrl(String myurl) throws IOException {
             // These two need to be declared outside the try/catch
             // so that they can be closed in the finally block.
             HttpURLConnection urlConnection = null;
@@ -121,14 +138,9 @@ public class MainActivity extends ActionBarActivity {
 
             // Will contain the raw JSON response as a string.
             String forecastJsonStr = null;
-
             try {
-                // Construct the URL for the OpenWeatherMap query
-                // Possible parameters are avaiable at OWM's forecast API page, at
-                // http://openweathermap.org/API#forecast
-                String baseUrl = "http://api.openweathermap.org/data/2.5/forecast/daily?q=94043&mode=json&units=metric&cnt=7";
-                String apiKey = "&APPID=" + BuildConfig.OPEN_WEATHER_MAP_API_KEY;
-                URL url = new URL(baseUrl.concat(apiKey));
+
+                URL url = new URL(myurl);
 
                 // Create the request to OpenWeatherMap, and open the connection
                 urlConnection = (HttpURLConnection) url.openConnection();
@@ -157,12 +169,13 @@ public class MainActivity extends ActionBarActivity {
                     return null;
                 }
                 forecastJsonStr = buffer.toString();
+                return forecastJsonStr;
             } catch (IOException e) {
                 Log.e("PlaceholderFragment", "Error ", e);
                 // If the code didn't successfully get the weather data, there's no point in attemping
                 // to parse it.
                 return null;
-            } finally{
+            } finally {
                 if (urlConnection != null) {
                     urlConnection.disconnect();
                 }
@@ -174,8 +187,33 @@ public class MainActivity extends ActionBarActivity {
                     }
                 }
             }
+        }
 
-            return rootView;
+        // Uses AsyncTask to create a task away from the main UI thread. This task takes a
+        // URL string and uses it to create an HttpUrlConnection. Once the connection
+        // has been established, the AsyncTask downloads the contents of the webpage as
+        // an InputStream. Finally, the InputStream is converted into a string, which is
+        // displayed in the UI by the AsyncTask's onPostExecute method.
+        private class DownloadWebpageTask extends AsyncTask<String, Void, String> {
+            @Override
+            protected String doInBackground(String... urls) {
+
+                // params comes from the execute() call: params[0] is the url.
+                try {
+                    return downloadUrl(urls[0]);
+                } catch (IOException e) {
+                    Log.e("PlaceholderFragment", "Error ", e);
+                    // If the code didn't successfully get the weather data, there's no point in attemping
+                    // to parse it.
+                    return null;
+                }
+            }
+
+            // onPostExecute displays the results of the AsyncTask.
+            @Override
+            protected void onPostExecute(String result) {
+
+            }
         }
     }
 }
