@@ -50,7 +50,7 @@ import java.util.List;
  */
 public class ForecastFragment extends Fragment {
 
-    private ArrayAdapter<String> mForecastAdapter;
+    public ArrayAdapter<String> mForecastAdapter;
 
     public ForecastFragment() {
     }
@@ -318,6 +318,18 @@ public class ForecastFragment extends Fragment {
 
             // This will only happen if there was an error getting or parsing the forecast.
             return null;
+        }
+        @Override
+        protected void onPostExecute(String[] result)
+        {
+            if(result != null)
+            {
+                mForecastAdapter.clear();
+                for (String dayForecastStr: result)
+                {
+                    mForecastAdapter.add(dayForecastStr);
+                }
+            }
         }
     }
 }
